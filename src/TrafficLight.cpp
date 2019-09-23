@@ -68,6 +68,7 @@ void TrafficLight::cycleThroughPhases()
     std::default_random_engine rdg; // random generator
     std::uniform_int_distribution<int> dist_4_6_seconds(4000, 6000); // generate a number between 4 and 6 seconds
     std::chrono::time_point<std::chrono::system_clock> lastUpdate;
+    std::future<void> ftr;
 
     // init stop watch
     lastUpdate = std::chrono::system_clock::now();
@@ -85,7 +86,8 @@ void TrafficLight::cycleThroughPhases()
                 this->_currentPhase = red;
             }
             // update to the message queue using move semantics
-            _msgs.emplace_back(std::async(std::launch::async, &MessageQueue<TrafficLightPhase>::send, this, _currentPhase));
+            ftr = std::async(std::launch::async, &MessageQueue<TrafficLightPhase>::send, &_msg, std::move(_currentPhase));
+            ftr.wait();
             // reset stop watch for next cycle
             lastUpdate = std::chrono::system_clock::now();
         }
