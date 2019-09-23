@@ -5,15 +5,24 @@
 
 /* Implementation of class "MessageQueue" */
 
-/* 
 template <typename T>
 T MessageQueue<T>::receive()
 {
     // FP.5a : The method receive should use std::unique_lock<std::mutex> and _condition.wait() 
     // to wait for and receive new messages and pull them from the queue using move semantics. 
     // The received object should then be returned by the receive function. 
+
+    // perform queue modification under the lock
+    std::unique_lock<std::mutex> uLock(_mtx);
+    // pass unique lock to condition variable
+    _condition.wait(uLock, [this] { return !_queue.empty(); });
+    // remove last vector element from queue
+    T msg = std::move(_queue.back());
+    _queue.pop_back();
+
+    return msg;
 }
-*/
+
 template <typename T>
 void MessageQueue<T>::send(T &&msg)
 {
