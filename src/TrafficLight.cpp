@@ -81,9 +81,10 @@ void TrafficLight::cycleThroughPhases()
     // Also, the while-loop should use std::this_thread::sleep_for to wait 1ms between two cycles. 
 
     // init variables and random distribution generator
-    std::default_random_engine rdg; // random generator
+    static std::default_random_engine rdg; // random generator
     std::uniform_int_distribution<int> dist_4_6_seconds(4000, 6000); // generate a number between 4 and 6 seconds
     std::chrono::time_point<std::chrono::system_clock> lastUpdate;
+    int cycleDuration = dist_4_6_seconds(rdg);
     std::future<void> ftr;
 
     // init stop watch
@@ -94,7 +95,7 @@ void TrafficLight::cycleThroughPhases()
 
         // compute time difference to stop watch
         long timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdate).count();
-        if (timeSinceLastUpdate >= dist_4_6_seconds(rdg)) {
+        if (timeSinceLastUpdate >= cycleDuration) {
             if (TrafficLight::getCurrentPhase() == red) {
                 this->_currentPhase = green;
             }
