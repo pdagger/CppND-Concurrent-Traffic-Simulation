@@ -1,5 +1,6 @@
 #include <iostream>
 #include <random>
+#include <future>
 #include "TrafficLight.h"
 
 /* Implementation of class "MessageQueue" */
@@ -12,14 +13,20 @@ T MessageQueue<T>::receive()
     // to wait for and receive new messages and pull them from the queue using move semantics. 
     // The received object should then be returned by the receive function. 
 }
-
+*/
 template <typename T>
 void MessageQueue<T>::send(T &&msg)
 {
     // FP.4a : The method send should use the mechanisms std::lock_guard<std::mutex> 
     // as well as _condition.notify_one() to add a new message to the queue and afterwards send a notification.
+    
+    // perform vector modification under the lock
+    std::lock_guard<std::mutex> uLock(_mtx);
+    // add vector to queue
+    _queue.push_back(std::move(msg));
+    // notify client after pushing new Vehicle into vector
+    _condition.notify_one();
 }
-*/
 
 /* Implementation of class "TrafficLight" */
 
@@ -46,7 +53,7 @@ void TrafficLight::simulate()
 {
     // FP.2b : Finally, the private method „cycleThroughPhases“ should be started in a thread when the public method „simulate“ is called.
     // To do this, use the thread queue in the base class. 
-    threads.emplace_back(std::thread(&TrafficLight::cycleThroughPhases(), this));
+    threads.emplace_back(std::thread(&TrafficLight::cycleThroughPhases, this));
 }
 
 // virtual function which is executed in a thread
@@ -58,8 +65,8 @@ void TrafficLight::cycleThroughPhases()
     // Also, the while-loop should use std::this_thread::sleep_for to wait 1ms between two cycles. 
 
     // init variables and random distribution generator
-    std::default_random_device rdg; // random generator
-    std::uniform_int_distribution<int> dist_4_6_seconds(4000, 6000) // generate a number between 4 and 6 seconds
+    std::default_random_engine rdg; // random generator
+    std::uniform_int_distribution<int> dist_4_6_seconds(4000, 6000); // generate a number between 4 and 6 seconds
     std::chrono::time_point<std::chrono::system_clock> lastUpdate;
 
     // init stop watch
@@ -71,14 +78,14 @@ void TrafficLight::cycleThroughPhases()
         // compute time difference to stop watch
         long timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdate).count();
         if (timeSinceLastUpdate >= dist_4_6_seconds(rdg)) {
-            if (TrafficLightPhase::getCurrentPhase() == red) {
+            if (TrafficLight::getCurrentPhase() == red) {
                 this->_currentPhase = green;
-                // TODO: update message queue
             }
             else{
-                this->getCurrentPhase = red;
-                // TODO: update message queue
+                this->_currentPhase = red;
             }
+            // update to the message queue using move semantics
+            _msgs.emplace_back(std::async(std::launch::async, &MessageQueue<TrafficLightPhase>::send, this, _currentPhase));
             // reset stop watch for next cycle
             lastUpdate = std::chrono::system_clock::now();
         }
